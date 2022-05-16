@@ -1,0 +1,10 @@
+******************************************************
+			 GA settings
+
+Number of chromosome: 100
+Number of elite chromosomes: 1
+Number of genes: 255
+Number of generations: 200
+Crossover rate: 0.7
+Mutation rate:  0.01
+Selection: tournament with 20 individuals

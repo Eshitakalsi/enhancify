@@ -10,18 +10,7 @@ import subprocess
 import numpy as np
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-
-# MPI version of Enhancify. It requires both MPI and mpi4py.
-
-def runMPI(folderIn, folderOut, population, generations, selection, cross_rate, mut_rate, pressure, elitism, cores, verbose):
-    run = "mpirun -np %d python src/Enhancify_mpi.py %s %s %d %d %s %f %f %d %d %s" % (cores, folderIn, folderOut, population, generations, selection, cross_rate, mut_rate, pressure, elitism, str(verbose))
-
-    # Calling the MPI version of Enhancify, which is based on the sequential version
-    p = subprocess.call(run, shell=True)
-
 # Sequential version of Enhancify
-
-
 def run(imagePath, folderIn, folderOut, population, generations, selection, cross_rate, mut_rate, pressure, elitism, verbose):
 
     startAll = time.time()

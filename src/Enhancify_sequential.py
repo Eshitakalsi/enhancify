@@ -2,8 +2,6 @@ import os
 import random as rnd
 import numpy as np
 from copy import deepcopy
-import sys
-import time
 
 from src.GA import chromosome
 from src.GA import geneticOperation
@@ -32,7 +30,7 @@ class Enhancify(object):
 		self.__noZeroPosHist	= None
 
 
-	def startGA(self, pop_size, numGen, selection, cross_rate, mut_rate, elitism, numberIndTour, minGL = 1):
+	def startGA(self, pop_size, numGen, selection, cross_rate, mut_rate, elitism, numberIndTour, image, minGL = 1):
 
 		# Image Processing object
 		imPros = processing()
@@ -80,7 +78,7 @@ class Enhancify(object):
 
 	# Initializing the population
 	def __initialize(self, pop, pop_size, mut_rate, T_k):
-
+     
 		for i in range(pop_size):
 			pop.append(chromosome(self.__targetHist, self.__noZeroPosHist, self.__numberOfGenes, self.__minGrayLevel, self.__maxGrayLevel, mut_rate, T_k))
 
@@ -187,8 +185,8 @@ class Enhancify(object):
 				else:
 					op.mutate(parent_1.genes, self.__minGrayLevel, self.__maxGrayLevel, parent_1.getOpt_T(), mut_rate)
 					op.mutate(parent_2.genes, self.__minGrayLevel, self.__maxGrayLevel, parent_2.getOpt_T(), mut_rate)
-					parent_1.calculateFitness(self.__targetHist, self.__noZeroPosHist, self.__maxGrayLevel, self.__minGrayLevel)
-					parent_2.calculateFitness(self.__targetHist, self.__noZeroPosHist, self.__maxGrayLevel, self.__minGrayLevel)
+					parent_1.calculateFitness(self.__targetHist, self.__noZeroPosHist)
+					parent_2.calculateFitness(self.__targetHist, self.__noZeroPosHist)
 					children.append(parent_1)
 					children.append(parent_2)
 					countWhile = countWhile-2

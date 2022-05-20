@@ -1,7 +1,5 @@
 import random as rnd
 import numpy as np
-import math
-import scipy.misc
 from copy import deepcopy
 import matplotlib
 matplotlib.use('Agg')
@@ -29,13 +27,11 @@ class chromosome(object):
             op.mutate(self.genes, minGrayLevel, maxGrayLevel, self.__opt_T, mut_rate)
 
         else:
-
             dist = self.__generateUniformDistribution(noZeroPosHist, minGrayLevel, maxGrayLevel)
-
             for i in range(0, numberOfGenes):
                 self.genes.append(gene(dist[i]))
         
-        self.genes.sort(key=lambda x: x.position)
+        # self.genes.sort(key=lambda x: x.position)
         self.__fitness, self.__opt_T, self.__hist = self.calculateFitness(targetHist, noZeroPosHist, maxGrayLevel, minGrayLevel)
 
     def __generateUniformDistribution(self, noZeroPosHist, minGrayLevel, maxGrayLevel):
@@ -43,106 +39,26 @@ class chromosome(object):
         dist1 =  np.random.uniform(minGrayLevel, maxGrayLevel, len(noZeroPosHist))
         dist = [int(round(j)) for j in dist1]
         return sorted(dist)
-
-    def __calculateVariances(self, hist, opt_T, mu1, mu2):
-
-        noZeroPosHist = np.nonzero(hist)[0]
-
-        val1 = noZeroPosHist[0]
-        val2 = noZeroPosHist[0]
-        pos = 0
-        for i in range(1, len(noZeroPosHist)):
-            if noZeroPosHist[i] <= opt_T:
-                val2 = noZeroPosHist[i]
-                pos = i
-            else:
-                break
-
-        val3 = noZeroPosHist[pos+1]
-        val4 = noZeroPosHist[-1]
-
-        halfWidth1 = (val2 - val1) / 2.0
-        halfWidth2 = (val4 - val3) / 2.0
-
-        countOcc1 = 0
-        acc1 = 0
-        countOcc2 = 0
-        acc2 = 0
-        for i in range(len(noZeroPosHist)):
-            greyLev = noZeroPosHist[i]
-            if greyLev <= opt_T:
-                countOcc1 += hist[greyLev]
-                acc1 += (hist[greyLev] * (greyLev - mu1)**2)
-            else:
-                countOcc2 += hist[greyLev]
-                acc2 += (hist[greyLev] * (greyLev - mu2)**2)                
-
-        std1 = math.sqrt((acc1 / (float(countOcc1))))
-        std2 = math.sqrt((acc2 / (float(countOcc2))))
-
-        return std1, std2, halfWidth1, halfWidth2
-
-    def __optimalThreshold(self, hist_vals, delta_T, max_it):
-
-        # Initializing the output value
-        opt_T = 1
     
-        # Initializing the threshold to the global mean
-        h_dim = len(hist_vals)
-        total_pixel_number = np.sum(hist_vals)
-        weighted_hist_sum = 0
-        for i in range(0, h_dim):
-            weighted_hist_sum = weighted_hist_sum + hist_vals[i] * (i-1)
+    #Iterative Optimal Threshold Selection algorithm
+    def __optimalThreshold(self, hist_vals, thresh, optimal_thres):        
+        G1 = []
+        G2 = []
+        for i in hist_vals:
+            if(i > thresh):
+                G1.append(i) 
+            else:
+                G2.append(i)
+                
+        mean1 = np.sum(G1) / len(G1)
+        mean2 = np.sum(G2) / len(G2)
         
-        hist_mean = weighted_hist_sum / (total_pixel_number*1.0)
+        main_T = (mean1 + mean2)/2
         
-        # If the histogram mean is equal to 0, the procedure ends  
-        if hist_mean == 0:
-            return opt_T
-    
-        # Threshold at step k
-        T_k = 0
-        
-        # Threshold at step k+1
-        T_k1 = int(math.floor(hist_mean))
-        
-        # Iteration counter
-        counter = 1
-        
-        while counter < max_it:
-            if (T_k1 - T_k) <= delta_T:
-                break
-            
-            # Updating the threshold
-            T_k = T_k1
-            
-            # Splitting the histogram H into two sub-histograms H1 and H2 by means of the threshold T_k
-            H1_pixel_number = 0
-            H2_pixel_number = 0
-            for i in range(0, T_k):
-                H1_pixel_number += hist_vals[i]
-            for i in range((T_k+1), h_dim):
-                H2_pixel_number += hist_vals[i]
-                            
-            weighted_H1_sum = 0
-            for i in range(0, T_k):
-                weighted_H1_sum = weighted_H1_sum + hist_vals[i] * (i-1)
-            
-            weighted_H2_sum = 0
-            for i in range((T_k+1), h_dim):
-                weighted_H2_sum = weighted_H2_sum + hist_vals[i] * (i-1)
-            
-            # Mean value of the sub-histogram H1
-            H1_mean = weighted_H1_sum / (H1_pixel_number*1.0)
-            
-            # Mean value of the sub-histogram H2
-            H2_mean = weighted_H2_sum / (H2_pixel_number*1.0)
-            
-            # Updating the threshold at step k+1 (T_k1)
-            T_k1 = int(math.floor((H1_mean + H2_mean) / 2.0))
-            counter = counter + 1
-            
-        return T_k, H1_mean, H2_mean
+        if abs(main_T - thresh) <= optimal_thres:
+            return main_T
+        else:
+            return self.__optimalThreshold(hist_vals, main_T, optimal_thres)
 
     def saveCurrentImage(self, targetHist, noZeroPosHist, targetMatrix, f_name, f_nameConf):
 
@@ -177,49 +93,28 @@ class chromosome(object):
             fo.write(str(self.__term2) + "\t")
             fo.write(str(self.__term3) + "\n")
 
-    def calculateFitness(self, targetHist, noZeroPosHist, maxGrayLevel, minGrayLevel, method = 'reverse'):
+    def calculateFitness(self, targetHist, noZeroPosHist, maxGrayLevel, minGrayLevel):
 
         hist = [0]*(maxGrayLevel+1)
+        oldIdx = self.genes[-1].position
+        for i in range(len(noZeroPosHist)-1, -1, -1):
+            idx = self.genes[i].position
+            if idx < minGrayLevel or idx > maxGrayLevel:
+                print ('idx', idx)
+                exit()
+            ind = noZeroPosHist[i]
+            if idx == oldIdx:
+                hist[idx] += targetHist[ind]
+            else:
+                hist[idx] = targetHist[ind]
+                oldIdx = self.genes[i].position
+                
+        h_dim = len(hist)
+        total_pixel_number = np.sum(hist)
+        T = total_pixel_number / h_dim
+        opt_T= self.__optimalThreshold(hist, T, 1)
 
-        if method == 'reverse':
-            oldIdx = self.genes[-1].position
-            for i in range(len(noZeroPosHist)-1, -1, -1):
-                idx = self.genes[i].position
-                if idx < minGrayLevel or idx > maxGrayLevel:
-                    print ('idx', idx)
-                    exit()
-                ind = noZeroPosHist[i]
-                if idx == oldIdx:
-                    hist[idx] += targetHist[ind]
-                else:
-                    hist[idx] = targetHist[ind]
-                    oldIdx = self.genes[i].position
-        
-        elif method == 'direct':
-            oldIdx = self.genes[0].position
-            for i in range(0, len(noZeroPosHist)):
-                idx = self.genes[i].position
-                if idx < minGrayLevel or idx > maxGrayLevel:
-                    print ('idx', idx)
-                    exit()
-                ind = noZeroPosHist[i]
-                if idx == oldIdx:
-                    hist[idx] += targetHist[ind]
-                else:
-                    hist[idx] = targetHist[ind]
-                    oldIdx = self.genes[i].position
-
-        opt_T, mu1, mu2 = self.__optimalThreshold(hist, 0.001, 100)
-
-        sigma1, sigma2, halfWidth1, halfWidth2= self.__calculateVariances(hist, opt_T, mu1, mu2)
-
-        self.__term1 = abs(2*opt_T - mu1 - mu2)
-        self.__term2 = abs( halfWidth1*0.33 - sigma1 )
-        self.__term3 = abs( halfWidth2*0.33 - sigma2 )
-
-        dist =  self.__term1 +  self.__term2 +  self.__term3
-
-        return dist, opt_T, hist
+        return opt_T, hist
 
     def getFitness(self):
         return self.__fitness
@@ -299,3 +194,19 @@ class geneticOperation(object):
             else:
                 list1 = deepcopy(parent_2.genes[0:randNum]) + deepcopy(parent_1.genes[randNum:randNum+half]) + deepcopy(parent_2.genes[randNum+half:numberGenes])
             return list1, randNum
+        
+# def calculateFitness(self, targetHist, noZeroPosHist):
+#         marg = list(filter(lambda p: p > 0, np.ravel(targetHist)))
+#         entropy = -np.sum(np.multiply(marg, np.log2(marg)))
+#         area_of_coverage = noZeroPosHist
+#         pixels = sum(targetHist)
+#         brightness = scale = len(targetHist)
+#         for index in range(0, scale):
+#             ratio = targetHist[index] / pixels
+#         brightness += ratio * (-scale + index)
+#         if brightness == 255:
+#             brightness = 1
+#         else:
+#             brightness = brightness / scale
+#         ans = pixels + area_of_coverage + brightness - entropy
+#         return ans

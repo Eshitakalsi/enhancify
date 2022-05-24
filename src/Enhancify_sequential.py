@@ -2,6 +2,8 @@ import os
 import random as rnd
 import numpy as np
 from copy import deepcopy
+import sys
+import time
 
 from src.GA import chromosome
 from src.GA import geneticOperation
